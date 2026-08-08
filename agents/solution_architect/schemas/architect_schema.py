@@ -1,23 +1,36 @@
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
+from typing import List, Dict, Any, Optional, Union
+from pydantic import BaseModel, Field, field_validator
 
 
 class ProblemAnalysis(BaseModel):
     business_problem: str = Field(..., description="Root business problem being solved")
     domain: str = Field(..., description="Primary industry domain e.g. Healthcare, Warehouse, FinTech, Agriculture")
     primary_objective: str = Field(..., description="Main system objective")
-    end_users: str = Field(..., description="Target end users or 'Not Specified'")
+    end_users: Union[str, bool] = Field(..., description="Target end users or 'Not Specified'")
     functional_requirements: List[str] = Field(default_factory=list, description="Extracted core functional requirements")
     non_functional_requirements: List[str] = Field(default_factory=list, description="Quality attributes or 'Not Specified'")
-    expected_scale: str = Field(..., description="Target scale volume or 'Not Specified'")
-    availability_requirements: str = Field(..., description="Availability SLA or 'Not Specified'")
-    performance_requirements: str = Field(..., description="Latency / performance requirements or 'Not Specified'")
-    security_requirements: str = Field(..., description="Security & compliance rules or 'Not Specified'")
-    ai_requirements: str = Field(..., description="AI/ML needs or 'Not Specified'")
-    analytics_requirements: str = Field(..., description="Reporting & analytics needs or 'Not Specified'")
-    real_time_requirements: str = Field(..., description="Real-time requirements or 'Not Specified'")
+    expected_scale: Union[str, bool] = Field(..., description="Target scale volume or 'Not Specified'")
+    availability_requirements: Union[str, bool] = Field(..., description="Availability SLA or 'Not Specified'")
+    performance_requirements: Union[str, bool] = Field(..., description="Latency / performance requirements or 'Not Specified'")
+    security_requirements: Union[str, bool] = Field(..., description="Security & compliance rules or 'Not Specified'")
+    ai_requirements: Union[str, bool] = Field(..., description="AI/ML needs or 'Not Specified'")
+    analytics_requirements: Union[str, bool] = Field(..., description="Reporting & analytics needs or 'Not Specified'")
+    real_time_requirements: Union[str, bool] = Field(..., description="Real-time requirements or 'Not Specified'")
     third_party_integrations: List[str] = Field(default_factory=list, description="External APIs or integrations mentioned")
-    deployment_constraints: str = Field(..., description="Deployment constraints or 'Not Specified'")
+    deployment_constraints: Union[str, bool] = Field(..., description="Deployment constraints or 'Not Specified'")
+
+    @field_validator(
+        "end_users", "expected_scale", "availability_requirements",
+        "performance_requirements", "security_requirements", "ai_requirements",
+        "analytics_requirements", "real_time_requirements", "deployment_constraints",
+        mode="before"
+    )
+    @classmethod
+    def coerce_to_str(cls, v: Any) -> str:
+        if isinstance(v, bool):
+            return "Yes (Required)" if v else "Not Required"
+        return str(v)
+
 
 
 class IdentifiedRequirements(BaseModel):

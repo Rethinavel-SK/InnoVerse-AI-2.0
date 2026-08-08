@@ -455,7 +455,7 @@ class TestBusinessStrategyAgent:
         assert result.request_id is not None
         assert result.metadata.agent_name == "BusinessStrategyAgent"
         assert result.metadata.version == "1.0.0"
-        assert result.metadata.model_used == "llama-3.3-70b-versatile"
+        assert result.metadata.model_used == agent.service.model_name
         assert result.metadata.execution_time_ms > 0
         assert "target_customers" in result.strategy_output
         assert "swot" in result.strategy_output
@@ -488,5 +488,6 @@ class TestBusinessStrategyAgent:
 
     def test_agent_model_name_from_config(self):
         from agents.business_strategy.agent import BusinessStrategyAgent
+        from agents.business_strategy.config import settings
         agent = BusinessStrategyAgent()
-        assert agent.service.model_name == "llama-3.3-70b-versatile"
+        assert agent.service.model_name == settings.model_name

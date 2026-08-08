@@ -351,7 +351,7 @@ async def test_full_pipeline_execution_live(agent, groq_api_key):
     assert isinstance(result, SolutionDesignResult)
     assert result.request_id is not None
     assert result.metadata.agent_name == "SolutionArchitectAgent"
-    assert result.metadata.model_used == "llama-3.3-70b-versatile"
+    assert result.metadata.model_used == agent.service.model_name
     assert result.metadata.execution_time_ms > 0
     assert "architecture" in result.architecture_output
     assert "problem_analysis" in result.architecture_output
