@@ -16,7 +16,7 @@ class Settings:
     GROQ_API_URL: str = "https://api.groq.com/openai/v1/chat/completions"
 
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-    DEFAULT_MODEL: str = os.getenv("RESEARCH_AGENT_MODEL", "gemini-2.5-flash")
+    DEFAULT_MODEL: str = os.getenv("RESEARCH_AGENT_MODEL", "gemini-2.0-flash")
 
     # Patent API Endpoints
     USPTO_API_URL: str = "https://developer.uspto.gov/ibd-api/v1/patent/application"

@@ -1,9 +1,9 @@
 """
-Innovation Director Service
-===========================
-Orchestrates execution across all 9 specialist AI agents, validates responses,
-resolves conflicts intelligently, calculates weighted innovation scores,
-and synthesizes outputs into a master executive innovation report.
+Innovation Director Service v2.0
+=================================
+Orchestrates execution across all 11 specialist AI agents (9 original + Failure Hunter + Execution Planner),
+validates responses, resolves conflicts with debate reasoning, calculates 10-dimension innovation scores,
+classifies evidence, and synthesizes outputs into a master executive innovation report.
 """
 
 import asyncio
@@ -21,13 +21,15 @@ from agents.innovation_director.schemas.director_schema import (
     InnovationDirectorResponse,
     ConflictResolutionItem,
     FinalRecommendation,
+    DebateEntry,
+    EvidenceItem,
 )
 from agents.innovation_director.prompts.system_prompt import (
     INNOVATION_DIRECTOR_SYSTEM_PROMPT,
     build_synthesis_prompt,
 )
 
-# Import all 9 specialist agents
+# Import all 9 original specialist agents
 from agents.solution_architect.agent import SolutionArchitectAgent
 from agents.business_strategy.agent import BusinessStrategyAgent
 from agents.research_intelligence.agent import research_agent
@@ -39,6 +41,13 @@ from agents.trend_intelligence.agent import trend_intelligence_agent
 from agents.risk_assessment.agent import execute as risk_execute
 from agents.sustainability.agent import sustainability_agent
 from agents.roadmap_planner import MVPRoadmapAgent
+
+# Import 2.0 agents
+from agents.failure_hunter.agent import FailureHunterAgent
+from agents.execution_planner.agent import ExecutionPlannerAgent
+
+# Import 2.0 services
+from agents.innovation_director.services.score_engine import score_engine
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +67,8 @@ class InnovationDirectorService:
         "risk_assessment",
         "sustainability",
         "mvp_roadmap",
+        "failure_hunter",
+        "execution_planner",
     ]
 
     def __init__(
@@ -155,7 +166,17 @@ class InnovationDirectorService:
             agent = MVPRoadmapAgent()
             return await agent.run(problem, ctx)
 
-        # Run selected agents concurrently with semaphore control
+        # 2.0: Failure Hunter
+        async def _failure_hunter():
+            agent = FailureHunterAgent()
+            return await agent.run(problem, ctx)
+
+        # 2.0: Execution Planner
+        async def _execution_planner():
+            agent = ExecutionPlannerAgent()
+            return await agent.run(problem, ctx)
+
+        # Run all agents concurrently with semaphore control
         results = await asyncio.gather(
             safe_run("solution_architect", _architect),
             safe_run("business_strategy", _strategy),
@@ -166,6 +187,8 @@ class InnovationDirectorService:
             safe_run("risk_assessment", _risk),
             safe_run("sustainability", _sustainability),
             safe_run("mvp_roadmap", _roadmap),
+            safe_run("failure_hunter", _failure_hunter),
+            safe_run("execution_planner", _execution_planner),
             return_exceptions=True
         )
 
@@ -179,6 +202,8 @@ class InnovationDirectorService:
             "risk_assessment",
             "sustainability",
             "mvp_roadmap",
+            "failure_hunter",
+            "execution_planner",
         ]
 
         agents_data: Dict[str, Any] = {}
@@ -209,8 +234,29 @@ class InnovationDirectorService:
         # Intelligent Conflict Detection & Resolution
         conflicts = self._detect_and_resolve_conflicts(agents_data)
 
-        # Weighted Innovation Score Calculation
-        weighted_score = self._calculate_weighted_innovation_score(agents_data)
+        # 2.0: Generate debate trace from conflicts
+        debate_trace = self._generate_debate_trace(agents_data, conflicts)
+
+        # 2.0: Classify evidence from agent results
+        evidence_items = self._classify_evidence(agents_data)
+
+        # 2.0: 10-Dimension Innovation Score via Score Engine
+        score_result = score_engine.calculate_score(agents_data, "pipeline", "v1")
+        weighted_score = score_result.overall_score
+        score_breakdown_dict = {
+            "market_potential": score_result.market_potential,
+            "technical_feasibility": score_result.technical_feasibility,
+            "business_viability": score_result.business_viability,
+            "innovation_differentiation": score_result.innovation_differentiation,
+            "patent_ip_position": score_result.patent_ip_position,
+            "risk_score": score_result.risk_score,
+            "sustainability": score_result.sustainability,
+            "mvp_feasibility": score_result.mvp_feasibility,
+            "customer_value": score_result.customer_value,
+            "scalability": score_result.scalability,
+            "overall_score": score_result.overall_score,
+            "explanation": score_result.explanation,
+        }
 
         # Master Executive Synthesis (LLM or Rule-Based Fallback)
         synthesis = await self._synthesize_master_report(
@@ -224,7 +270,7 @@ class InnovationDirectorService:
         )
         problem_und = synthesis.get(
             "problem_understanding",
-            f"Evaluation of project concept: '{problem}'. Consolidated findings from {completed_count} of 9 active specialist agents."
+            f"Evaluation of project concept: '{problem}'. Consolidated findings from {completed_count} of {total_agents} active specialist agents."
         )
 
         llm_conflicts = synthesis.get("conflict_resolution", [])
@@ -261,6 +307,7 @@ class InnovationDirectorService:
             executive_summary=exec_summary,
             problem_understanding=problem_und,
             agent_status=agent_status,
+            # Original 9 agents
             technical_summary=agents_data.get("solution_architect", {}),
             business_summary=agents_data.get("business_strategy", {}),
             research_summary=agents_data.get("research", {}),
@@ -270,6 +317,14 @@ class InnovationDirectorService:
             risk_summary=agents_data.get("risk_assessment", {}),
             sustainability_summary=agents_data.get("sustainability", {}),
             roadmap_summary=agents_data.get("mvp_roadmap", {}),
+            # 2.0: New agents
+            failure_analysis=agents_data.get("failure_hunter", {}),
+            execution_plan=agents_data.get("execution_planner", {}),
+            # 2.0: Debate, Evidence & Score
+            debate_trace=debate_trace,
+            evidence_items=evidence_items,
+            score_breakdown=score_breakdown_dict,
+            # Original fields
             conflict_resolution=combined_conflicts,
             overall_innovation_score=weighted_score,
             confidence=confidence,
@@ -472,3 +527,134 @@ class InnovationDirectorService:
                 ]
             }
         }
+
+    # -------------------------------------------------------------------
+    # 2.0: Debate Trace Generation
+    # -------------------------------------------------------------------
+
+    def _generate_debate_trace(self, agents_data: Dict[str, Any],
+                                conflicts: List[ConflictResolutionItem]) -> List[Dict[str, Any]]:
+        """
+        Generate structured debate entries from detected conflicts and agent disagreements.
+        The Innovation Director reasons about each conflict instead of simply averaging.
+        """
+        debate_entries = []
+
+        # From detected conflicts
+        for conflict in conflicts:
+            entry = DebateEntry(
+                topic=conflict.conflict_description,
+                agents_involved=conflict.agents_involved,
+                positions={agent: "See conflict description" for agent in conflict.agents_involved},
+                evidence=[conflict.comparison],
+                resolution=f"{conflict.resolution} — Reasoning: {conflict.reasoning}",
+                confidence=0.8,
+            )
+            debate_entries.append(entry.model_dump())
+
+        # Check for risk vs. optimism conflicts
+        failure_data = agents_data.get("failure_hunter", {})
+        biz_data = agents_data.get("business_strategy", {})
+
+        failure_prob = failure_data.get("overall_failure_probability", "")
+        biz_confidence = biz_data.get("confidence", 0)
+
+        if isinstance(failure_prob, str) and failure_prob.upper() == "HIGH" and isinstance(biz_confidence, (int, float)) and biz_confidence > 0.7:
+            debate_entries.append(DebateEntry(
+                topic="Failure Hunter identifies HIGH failure risk while Business Strategy shows HIGH confidence",
+                agents_involved=["failure_hunter", "business_strategy"],
+                positions={
+                    "failure_hunter": f"Overall failure probability: {failure_prob}. Key risks need immediate mitigation.",
+                    "business_strategy": f"High business confidence ({biz_confidence}). Market opportunity is strong."
+                },
+                evidence=["Agent outputs show divergent risk assessment — Failure Hunter is adversarial by design."],
+                resolution="Both perspectives are valid. Proceed with execution but implement Failure Hunter's top mitigations as prerequisites. The business opportunity justifies the risk IF mitigations are in place.",
+                confidence=0.75,
+            ).model_dump())
+
+        return debate_entries
+
+    # -------------------------------------------------------------------
+    # 2.0: Evidence Classification
+    # -------------------------------------------------------------------
+
+    def _classify_evidence(self, agents_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Classify evidence from agent results as FACT, INFERENCE, PREDICTION, or ASSUMPTION.
+        """
+        evidence_items = []
+
+        # Research findings are closer to FACTS (backed by papers/data)
+        research = agents_data.get("research", {})
+        if isinstance(research, dict):
+            papers = research.get("papers_found", research.get("total_papers", 0))
+            if papers:
+                evidence_items.append(EvidenceItem(
+                    statement=f"Research literature search found {papers} relevant papers.",
+                    classification="FACT",
+                    source="academic_databases",
+                    agent="research_intelligence",
+                    confidence=0.9,
+                ).model_dump())
+
+        # Patent analysis can be FACT-based
+        patent = agents_data.get("patent_analysis", {})
+        if isinstance(patent, dict):
+            patent_count = patent.get("patents_found", patent.get("total_patents", 0))
+            novelty = patent.get("novelty_score", patent.get("score", 0))
+            if patent_count or novelty:
+                evidence_items.append(EvidenceItem(
+                    statement=f"Patent search found {patent_count} related patents. Novelty score: {novelty}.",
+                    classification="FACT",
+                    source="patent_databases",
+                    agent="patent_intelligence",
+                    confidence=0.85,
+                ).model_dump())
+
+        # Business projections are PREDICTIONS
+        business = agents_data.get("business_strategy", {})
+        if isinstance(business, dict):
+            evidence_items.append(EvidenceItem(
+                statement=f"Business strategy analysis completed with confidence {business.get('confidence', 'N/A')}.",
+                classification="PREDICTION",
+                source="llm_analysis",
+                agent="business_strategy",
+                confidence=0.7,
+            ).model_dump())
+
+        # Market analysis projections
+        market = agents_data.get("market_analysis", {})
+        if isinstance(market, dict) and market:
+            evidence_items.append(EvidenceItem(
+                statement="Market size and competitive landscape analysis based on available data.",
+                classification="INFERENCE",
+                source="market_data",
+                agent="market_intelligence",
+                confidence=0.65,
+            ).model_dump())
+
+        # Failure risks are INFERENCES
+        failure = agents_data.get("failure_hunter", {})
+        if isinstance(failure, dict):
+            for risk in failure.get("top_failure_risks", [])[:3]:
+                if isinstance(risk, dict):
+                    evidence_items.append(EvidenceItem(
+                        statement=f"Failure risk: {risk.get('risk', 'Unknown')}",
+                        classification="INFERENCE",
+                        source="adversarial_analysis",
+                        agent="failure_hunter",
+                        confidence=0.7,
+                    ).model_dump())
+
+        # Technical architecture is INFERENCE
+        tech = agents_data.get("solution_architect", {})
+        if isinstance(tech, dict) and tech:
+            evidence_items.append(EvidenceItem(
+                statement="Technical architecture recommendation based on requirements analysis.",
+                classification="INFERENCE",
+                source="llm_analysis",
+                agent="solution_architect",
+                confidence=0.75,
+            ).model_dump())
+
+        return evidence_items

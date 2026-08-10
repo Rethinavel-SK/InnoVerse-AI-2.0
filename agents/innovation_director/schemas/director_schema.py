@@ -2,7 +2,7 @@
 Pydantic Schemas for Innovation Director Agent.
 ===============================================
 Defines request and response models for orchestrating and synthesizing
-all 9 specialist AI agents according to strict director guidelines.
+all specialist AI agents (11 in v2.0) according to strict director guidelines.
 """
 
 from typing import Dict, List, Any, Optional, Union
@@ -56,10 +56,29 @@ class FinalRecommendation(BaseModel):
     future_scope: List[str] = Field(default_factory=list, description="Future enhancements and long-term features.")
 
 
+class DebateEntry(BaseModel):
+    """A single debate entry between agents with opposing views."""
+    topic: str = Field(..., description="What the agents disagree about.")
+    agents_involved: List[str] = Field(default_factory=list)
+    positions: Dict[str, str] = Field(default_factory=dict, description="agent_name -> position")
+    evidence: List[str] = Field(default_factory=list)
+    resolution: str = Field(default="", description="Director's resolution with reasoning.")
+    confidence: float = Field(default=0.7)
+
+
+class EvidenceItem(BaseModel):
+    """Evidence with classification (FACT/INFERENCE/PREDICTION/ASSUMPTION)."""
+    statement: str
+    classification: str = "INFERENCE"  # FACT, INFERENCE, PREDICTION, ASSUMPTION
+    source: str = "agent_analysis"
+    agent: str = ""
+    confidence: float = 0.7
+
+
 class InnovationDirectorResponse(BaseModel):
     """
     Unified master response returned by the Innovation Director Agent.
-    Contains synthesized master findings and summaries from all 9 specialist agents.
+    Contains synthesized master findings and summaries from all 11 specialist agents (v2.0).
     """
     executive_summary: str = Field(..., description="Comprehensive executive summary narrative.")
     problem_understanding: str = Field(..., description="Deep analysis and context of the input problem statement.")
@@ -74,9 +93,12 @@ class InnovationDirectorResponse(BaseModel):
             "risk_assessment": "Completed",
             "sustainability": "Completed",
             "mvp_roadmap": "Completed",
+            "failure_hunter": "Completed",
+            "execution_planner": "Completed",
         },
-        description="Execution status for each of the 9 specialist agents ('Completed' or 'Unavailable')."
+        description="Execution status for each specialist agent ('Completed' or 'Unavailable')."
     )
+    # --- Original 9 agent summaries ---
     technical_summary: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Output from Solution Architect Agent")
     business_summary: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Output from Business Strategy Agent")
     research_summary: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Output from Research Agent")
@@ -86,6 +108,32 @@ class InnovationDirectorResponse(BaseModel):
     risk_summary: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Output from Risk Assessment Agent")
     sustainability_summary: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Output from Sustainability Agent")
     roadmap_summary: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Output from MVP & Roadmap Planner Agent")
+
+    # --- 2.0: New agent summaries ---
+    failure_analysis: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Output from Failure Hunter Agent")
+    execution_plan: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Output from Execution Planner Agent")
+
+    # --- 2.0: Debate, Evidence & Score ---
+    debate_trace: List[Union[DebateEntry, Dict[str, Any]]] = Field(
+        default_factory=list,
+        description="Multi-agent debate trace with opposing positions, evidence, and resolutions."
+    )
+    evidence_items: List[Union[EvidenceItem, Dict[str, Any]]] = Field(
+        default_factory=list,
+        description="Classified evidence items (FACT/INFERENCE/PREDICTION/ASSUMPTION)."
+    )
+    score_breakdown: Optional[Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Transparent 10-dimension innovation score breakdown."
+    )
+
+    # --- 2.0: Idea Evolution ---
+    evolution_history: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Idea evolution versions with score progression."
+    )
+
+    # --- Original fields ---
     conflict_resolution: List[Union[ConflictResolutionItem, Dict[str, Any], str]] = Field(
         default_factory=list,
         description="Reconciled conflicts between agent recommendations with reasoning."
