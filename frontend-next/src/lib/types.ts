@@ -16,8 +16,10 @@ export const AGENTS: AgentInfo[] = [
   { id: "market_analysis", name: "Market Intelligence", description: "Target market, customer personas", icon: "📊", color: "#8b5cf6" },
   { id: "trend_analysis", name: "Trend Intelligence", description: "Tech hype cycle & adoption phase", icon: "⚡", color: "#f59e0b" },
   { id: "risk_assessment", name: "Risk Assessment", description: "Technical, financial, legal & security risks", icon: "⚠️", color: "#ef4444" },
+  { id: "failure_hunter", name: "Failure Hunter", description: "Stress-tests assumptions & uncovers fatal flaws", icon: "🎯", color: "#dc2626" },
   { id: "sustainability", name: "Sustainability", description: "ESG score, carbon footprint, SDGs", icon: "🌱", color: "#22c55e" },
   { id: "mvp_roadmap", name: "MVP & Roadmap Planner", description: "Features, timelines, team & budget", icon: "🗺️", color: "#ec4899" },
+  { id: "execution_planner", name: "Execution Planner", description: "Sprint planning, tasks & validation experiments", icon: "📋", color: "#14b8a6" },
 ];
 
 export interface AgentExplainability {

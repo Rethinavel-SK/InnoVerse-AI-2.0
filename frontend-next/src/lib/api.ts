@@ -74,6 +74,15 @@ export async function checkHealth() {
   }
 }
 
+export async function getCommunicationLogs() {
+  try {
+    const { data } = await axios.get(`${BASE_URL}/communications`, { timeout: 3000 });
+    return data.communications || [];
+  } catch {
+    return [];
+  }
+}
+
 // ---- Local Storage & Instant Seed Data ----
 const STORAGE_KEY = "idp_saved_analyses";
 

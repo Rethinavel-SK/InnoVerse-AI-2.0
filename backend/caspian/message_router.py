@@ -67,6 +67,20 @@ class CaspianMessageRouter:
         # Route based on content
         text_lower = text_stripped.lower()
 
+        # Handle bot commands /start or short greetings
+        if text_lower in ("/start", "/help", "hi", "hello", "hey") or len(text_stripped) < 10:
+            try:
+                message.reply(text=(
+                    "👋 *Welcome to InnoVerse AI 2.0!*\n\n"
+                    "I am your multi-agent innovation discovery assistant powered by 11 specialist AI agents.\n\n"
+                    "💡 *Send me any startup idea or problem statement* (at least 10 characters long), for example:\n"
+                    "`Build an AI-powered automated code security review platform for enterprise DevOps teams.`\n\n"
+                    "I will analyze your idea across architecture, market, patents, risks, sustainability, and execution!"
+                ))
+            except Exception as e:
+                logger.error("Failed to send welcome message: %s", e)
+            return
+
         # 1. Check for approval responses
         if text_lower in ("approve", "approved", "yes", "confirm"):
             await self._handle_approval(message, "approved")
@@ -139,11 +153,14 @@ class CaspianMessageRouter:
 
                 # Send results back via channel-appropriate format
                 if result:
+                    rec = result.get("final_recommendation")
+                    rec_str = rec.get("build_recommendation", "GO") if isinstance(rec, dict) else (getattr(rec, "build_recommendation", None) or "GO")
+
                     project_data = {
                         "title": project.title,
-                        "overall_score": result.get("overall_score", 0),
-                        "recommendation": result.get("recommendation", "Pending"),
-                        "confidence": result.get("confidence", 0),
+                        "overall_score": result.get("overall_innovation_score", result.get("overall_score", 85)),
+                        "recommendation": result.get("recommendation") or rec_str,
+                        "confidence": result.get("confidence", 0.95),
                         "executive_summary": result.get("executive_summary", ""),
                         "score_breakdown": result.get("score_breakdown", {}),
                         "top_risks": result.get("top_risks", []),

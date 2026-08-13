@@ -344,11 +344,17 @@ class DatabaseManager:
         await self.db.commit()
         return event
 
-    async def get_communications(self, project_id: str, limit: int = 50) -> List[CommunicationEvent]:
-        cursor = await self.db.execute(
-            "SELECT * FROM communication_events WHERE project_id = ? ORDER BY created_at DESC LIMIT ?",
-            (project_id, limit)
-        )
+    async def get_communications(self, project_id: Optional[str] = None, limit: int = 50) -> List[CommunicationEvent]:
+        if project_id:
+            cursor = await self.db.execute(
+                "SELECT * FROM communication_events WHERE project_id = ? ORDER BY created_at DESC LIMIT ?",
+                (project_id, limit)
+            )
+        else:
+            cursor = await self.db.execute(
+                "SELECT * FROM communication_events ORDER BY created_at DESC LIMIT ?",
+                (limit,)
+            )
         rows = await cursor.fetchall()
         return [CommunicationEvent(
             id=r["id"], project_id=r["project_id"],

@@ -354,10 +354,17 @@ async def update_task(task_id: str, req: UpdateTaskRequest):
 # Communication Endpoints
 # ---------------------------------------------------------------------------
 
+@router.get("/communications")
+async def get_all_communications(limit: int = 50):
+    """Get all recent communication events across Telegram, Discord, and Email."""
+    events = await db_manager.get_communications(project_id=None, limit=limit)
+    return {"communications": [e.model_dump() for e in events]}
+
+
 @router.get("/innovations/{project_id}/communications")
 async def get_communications(project_id: str, limit: int = 50):
     """Get communication history for a project."""
-    events = await db_manager.get_communications(project_id, limit=limit)
+    events = await db_manager.get_communications(project_id=project_id, limit=limit)
     return {"project_id": project_id, "communications": [e.model_dump() for e in events]}
 
 
